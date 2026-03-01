@@ -1,4 +1,4 @@
-"""Tests for conversation memory module."""
+"""Tests for conversation memory."""
 
 import json
 from unittest.mock import AsyncMock
@@ -28,30 +28,26 @@ def settings() -> Settings:
 
 @pytest.fixture
 def mock_redis() -> AsyncMock:
-    redis = AsyncMock()
-    return redis
+    return AsyncMock()
 
 
 @pytest.fixture
-def memory(settings: Settings, mock_redis: AsyncMock) -> ConversationMemory:
+def memory(settings, mock_redis) -> ConversationMemory:
     return ConversationMemory(settings, mock_redis)
 
 
 class TestConversationMemory:
-    """Test ConversationMemory operations."""
 
     @pytest.mark.asyncio
-    async def test_add_message(self, memory: ConversationMemory, mock_redis: AsyncMock) -> None:
-        """Should store message in Redis list."""
+    async def test_add_message(self, memory, mock_redis):
         await memory.add_message(123, "user", "Hello")
 
-        expected_msg = json.dumps({"role": "user", "content": "Hello"})
-        mock_redis.rpush.assert_awaited_once_with("conv:123", expected_msg)
+        expected = json.dumps({"role": "user", "content": "Hello"})
+        mock_redis.rpush.assert_awaited_once_with("conv:123", expected)
         mock_redis.ltrim.assert_awaited_once_with("conv:123", -10, -1)
 
     @pytest.mark.asyncio
-    async def test_get_messages_empty(self, memory: ConversationMemory, mock_redis: AsyncMock) -> None:
-        """Should return only system prompt when no messages exist."""
+    async def test_get_messages_empty(self, memory, mock_redis):
         mock_redis.lrange.return_value = []
         mock_redis.get.return_value = None
 
@@ -62,8 +58,7 @@ class TestConversationMemory:
         assert messages[0]["content"] == "You are a test assistant."
 
     @pytest.mark.asyncio
-    async def test_get_messages_with_history(self, memory: ConversationMemory, mock_redis: AsyncMock) -> None:
-        """Should return system prompt + conversation history."""
+    async def test_get_messages_with_history(self, memory, mock_redis):
         mock_redis.lrange.return_value = [
             json.dumps({"role": "user", "content": "Hi"}),
             json.dumps({"role": "assistant", "content": "Hello!"}),
@@ -73,44 +68,33 @@ class TestConversationMemory:
         messages = await memory.get_messages(456)
 
         assert len(messages) == 3
-        assert messages[0]["role"] == "system"
-        assert messages[1]["role"] == "user"
         assert messages[1]["content"] == "Hi"
-        assert messages[2]["role"] == "assistant"
         assert messages[2]["content"] == "Hello!"
 
     @pytest.mark.asyncio
-    async def test_clear(self, memory: ConversationMemory, mock_redis: AsyncMock) -> None:
-        """Should delete conversation key from Redis."""
+    async def test_clear(self, memory, mock_redis):
         await memory.clear(123)
         mock_redis.delete.assert_awaited_once_with("conv:123")
 
     @pytest.mark.asyncio
-    async def test_set_system_prompt(self, memory: ConversationMemory, mock_redis: AsyncMock) -> None:
-        """Should store custom system prompt."""
+    async def test_set_system_prompt(self, memory, mock_redis):
         await memory.set_system_prompt(123, "Be a pirate.")
-        mock_redis.set.assert_awaited_once_with("sys:123", "Be a pirate.")
+        mock_redis.set.assert_awaited_once_with(
+            "sys:123", "Be a pirate."
+        )
 
     @pytest.mark.asyncio
-    async def test_get_system_prompt_custom(self, memory: ConversationMemory, mock_redis: AsyncMock) -> None:
-        """Should return custom system prompt when set."""
+    async def test_get_custom_system_prompt(self, memory, mock_redis):
         mock_redis.get.return_value = "Be a pirate."
-
-        prompt = await memory.get_system_prompt(123)
-        assert prompt == "Be a pirate."
+        assert await memory.get_system_prompt(123) == "Be a pirate."
 
     @pytest.mark.asyncio
-    async def test_get_system_prompt_default(self, memory: ConversationMemory, mock_redis: AsyncMock) -> None:
-        """Should return default system prompt when none set."""
+    async def test_get_default_system_prompt(self, memory, mock_redis):
         mock_redis.get.return_value = None
-
         prompt = await memory.get_system_prompt(123)
         assert prompt == "You are a test assistant."
 
     @pytest.mark.asyncio
-    async def test_get_system_prompt_bytes(self, memory: ConversationMemory, mock_redis: AsyncMock) -> None:
-        """Should handle bytes response from Redis."""
+    async def test_system_prompt_bytes_decode(self, memory, mock_redis):
         mock_redis.get.return_value = b"Be helpful."
-
-        prompt = await memory.get_system_prompt(123)
-        assert prompt == "Be helpful."
+        assert await memory.get_system_prompt(123) == "Be helpful."

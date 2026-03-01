@@ -1,4 +1,4 @@
-"""Tests for rate limiting module."""
+"""Tests for rate limiting."""
 
 from unittest.mock import AsyncMock, MagicMock
 
@@ -26,7 +26,7 @@ def settings() -> Settings:
 
 
 @pytest.fixture
-def mock_redis() -> AsyncMock:
+def mock_redis():
     redis = AsyncMock()
     pipe = MagicMock()
     pipe.execute = AsyncMock(return_value=[0, 0])
@@ -35,45 +35,30 @@ def mock_redis() -> AsyncMock:
 
 
 @pytest.fixture
-def rate_limiter(settings: Settings, mock_redis: AsyncMock) -> RateLimiter:
+def rate_limiter(settings, mock_redis):
     return RateLimiter(settings, mock_redis)
 
 
 class TestRateLimiter:
-    """Test RateLimiter behavior."""
 
     @pytest.mark.asyncio
-    async def test_check_allowed(self, rate_limiter: RateLimiter, mock_redis: AsyncMock) -> None:
-        """Should allow requests under the limit."""
-        pipe = mock_redis.pipeline.return_value
-        pipe.execute.return_value = [0, 3]  # 3 requests, limit is 5
-
-        result = await rate_limiter.check(123)
-        assert result is True
+    async def test_allowed_under_limit(self, rate_limiter, mock_redis):
+        mock_redis.pipeline.return_value.execute.return_value = [0, 3]
+        assert await rate_limiter.check(123) is True
 
     @pytest.mark.asyncio
-    async def test_check_denied(self, rate_limiter: RateLimiter, mock_redis: AsyncMock) -> None:
-        """Should deny requests at the limit."""
-        pipe = mock_redis.pipeline.return_value
-        pipe.execute.return_value = [0, 5]  # 5 requests, limit is 5
-
-        result = await rate_limiter.check(123)
-        assert result is False
+    async def test_denied_at_limit(self, rate_limiter, mock_redis):
+        mock_redis.pipeline.return_value.execute.return_value = [0, 5]
+        assert await rate_limiter.check(123) is False
 
     @pytest.mark.asyncio
-    async def test_check_over_limit(self, rate_limiter: RateLimiter, mock_redis: AsyncMock) -> None:
-        """Should deny requests over the limit."""
-        pipe = mock_redis.pipeline.return_value
-        pipe.execute.return_value = [0, 10]
-
-        result = await rate_limiter.check(123)
-        assert result is False
+    async def test_denied_over_limit(self, rate_limiter, mock_redis):
+        mock_redis.pipeline.return_value.execute.return_value = [0, 10]
+        assert await rate_limiter.check(123) is False
 
     @pytest.mark.asyncio
-    async def test_record(self, rate_limiter: RateLimiter, mock_redis: AsyncMock) -> None:
-        """Should record a request in Redis."""
+    async def test_record(self, rate_limiter, mock_redis):
         pipe = mock_redis.pipeline.return_value
-
         await rate_limiter.record(123)
 
         pipe.zadd.assert_called_once()
@@ -81,31 +66,21 @@ class TestRateLimiter:
         pipe.execute.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_get_remaining(self, rate_limiter: RateLimiter, mock_redis: AsyncMock) -> None:
-        """Should return remaining requests."""
+    async def test_remaining(self, rate_limiter, mock_redis):
         mock_redis.zcard.return_value = 3
-
-        remaining = await rate_limiter.get_remaining(123)
-        assert remaining == 2  # 5 - 3
+        assert await rate_limiter.get_remaining(123) == 2
 
     @pytest.mark.asyncio
-    async def test_get_remaining_at_limit(self, rate_limiter: RateLimiter, mock_redis: AsyncMock) -> None:
-        """Should return 0 when at limit."""
+    async def test_remaining_at_limit(self, rate_limiter, mock_redis):
         mock_redis.zcard.return_value = 5
-
-        remaining = await rate_limiter.get_remaining(123)
-        assert remaining == 0
+        assert await rate_limiter.get_remaining(123) == 0
 
     @pytest.mark.asyncio
-    async def test_get_remaining_over_limit(self, rate_limiter: RateLimiter, mock_redis: AsyncMock) -> None:
-        """Should return 0 when over limit."""
+    async def test_remaining_over_limit(self, rate_limiter, mock_redis):
         mock_redis.zcard.return_value = 10
-
-        remaining = await rate_limiter.get_remaining(123)
-        assert remaining == 0
+        assert await rate_limiter.get_remaining(123) == 0
 
     @pytest.mark.asyncio
-    async def test_key_format(self, rate_limiter: RateLimiter) -> None:
-        """Should use correct Redis key format."""
+    async def test_key_format(self, rate_limiter):
         assert rate_limiter._key(123) == "rate:123"
         assert rate_limiter._key(456) == "rate:456"

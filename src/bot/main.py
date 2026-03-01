@@ -4,7 +4,12 @@ import logging
 
 from aiohttp import web
 from redis.asyncio import from_url as redis_from_url
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    MessageHandler,
+    filters,
+)
 
 from bot.ai_client import AIClient
 from bot.config import get_settings
@@ -16,12 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 async def health_handler(request: web.Request) -> web.Response:
-    """Health check endpoint."""
     return web.Response(text="OK")
 
 
 async def run_health_server(port: int) -> web.AppRunner:
-    """Start a simple HTTP server for health checks."""
     app = web.Application()
     app.router.add_get("/health", health_handler)
     runner = web.AppRunner(app)
@@ -33,7 +36,6 @@ async def run_health_server(port: int) -> web.AppRunner:
 
 
 def main() -> None:
-    """Initialize and run the bot."""
     settings = get_settings()
 
     logging.basicConfig(
@@ -41,13 +43,11 @@ def main() -> None:
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
     )
 
-    logger.info("Starting AI Telegram Assistant")
+    logger.info("Starting bot")
 
-    # Build the Telegram application
     app = ApplicationBuilder().token(settings.telegram_bot_token).build()
 
     async def post_init(application) -> None:
-        """Set up services after the application is initialized."""
         redis = redis_from_url(
             settings.redis_url, decode_responses=True
         )
@@ -63,19 +63,27 @@ def main() -> None:
             settings.health_check_port
         )
 
-        # Register handlers
-        application.add_handler(CommandHandler("start", handlers.start))
-        application.add_handler(CommandHandler("help", handlers.help_command))
-        application.add_handler(CommandHandler("clear", handlers.clear))
-        application.add_handler(CommandHandler("system", handlers.system))
         application.add_handler(
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.message)
+            CommandHandler("start", handlers.start)
+        )
+        application.add_handler(
+            CommandHandler("help", handlers.help_command)
+        )
+        application.add_handler(
+            CommandHandler("clear", handlers.clear)
+        )
+        application.add_handler(
+            CommandHandler("system", handlers.system)
+        )
+        application.add_handler(
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND, handlers.message
+            )
         )
 
-        logger.info("Bot initialized successfully")
+        logger.info("Bot initialized")
 
     async def post_shutdown(application) -> None:
-        """Clean up resources on shutdown."""
         ai_client = application.bot_data.get("ai_client")
         if ai_client:
             await ai_client.close()
@@ -88,12 +96,10 @@ def main() -> None:
         if health_runner:
             await health_runner.cleanup()
 
-        logger.info("Bot shut down gracefully")
+        logger.info("Bot shut down")
 
     app.post_init = post_init
     app.post_shutdown = post_shutdown
-
-    logger.info("Bot is polling for updates...")
     app.run_polling(drop_pending_updates=True)
 
 

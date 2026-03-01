@@ -1,7 +1,5 @@
 """Shared test fixtures."""
 
-from unittest.mock import AsyncMock
-
 import pytest
 
 from bot.config import Settings
@@ -9,7 +7,6 @@ from bot.config import Settings
 
 @pytest.fixture
 def settings() -> Settings:
-    """Create test settings with dummy values."""
     return Settings(
         telegram_bot_token="test-token",
         openai_api_key="test-key",
@@ -23,15 +20,3 @@ def settings() -> Settings:
         health_check_port=8080,
         log_level="DEBUG",
     )
-
-
-@pytest.fixture
-def mock_redis() -> AsyncMock:
-    """Create a mock async Redis client."""
-    redis = AsyncMock()
-    redis.pipeline.return_value = AsyncMock()
-    pipe = redis.pipeline.return_value
-    pipe.__aenter__ = AsyncMock(return_value=pipe)
-    pipe.__aexit__ = AsyncMock(return_value=False)
-    pipe.execute = AsyncMock(return_value=[0, 0])
-    return redis

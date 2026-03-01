@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from openai import APIConnectionError, APITimeoutError, RateLimitError
 
 from bot.ai_client import AIClient, AIClientError, AIResponse
 from bot.config import Settings
@@ -27,7 +28,6 @@ def settings() -> Settings:
 
 @pytest.fixture
 def mock_openai_response() -> MagicMock:
-    """Create a mock OpenAI chat completion response."""
     response = MagicMock()
     response.choices = [MagicMock()]
     response.choices[0].message.content = "Hello! How can I help you?"
@@ -38,17 +38,18 @@ def mock_openai_response() -> MagicMock:
 
 
 class TestAIClient:
-    """Test AIClient wrapper."""
 
     @pytest.mark.asyncio
-    async def test_generate_success(self, settings: Settings, mock_openai_response: MagicMock) -> None:
-        """Should return AIResponse on successful generation."""
+    async def test_generate_success(self, settings, mock_openai_response):
         client = AIClient(settings)
         client._client = AsyncMock()
-        client._client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
+        client._client.chat.completions.create = AsyncMock(
+            return_value=mock_openai_response
+        )
 
-        messages = [{"role": "user", "content": "Hello"}]
-        result = await client.generate(messages)
+        result = await client.generate(
+            [{"role": "user", "content": "Hello"}]
+        )
 
         assert isinstance(result, AIResponse)
         assert result.content == "Hello! How can I help you?"
@@ -57,8 +58,7 @@ class TestAIClient:
         assert result.total_tokens == 18
 
     @pytest.mark.asyncio
-    async def test_generate_empty_content(self, settings: Settings) -> None:
-        """Should handle None content gracefully."""
+    async def test_generate_none_content(self, settings):
         response = MagicMock()
         response.choices = [MagicMock()]
         response.choices[0].message.content = None
@@ -68,16 +68,17 @@ class TestAIClient:
 
         client = AIClient(settings)
         client._client = AsyncMock()
-        client._client.chat.completions.create = AsyncMock(return_value=response)
+        client._client.chat.completions.create = AsyncMock(
+            return_value=response
+        )
 
-        result = await client.generate([{"role": "user", "content": "Hi"}])
+        result = await client.generate(
+            [{"role": "user", "content": "Hi"}]
+        )
         assert result.content == ""
 
     @pytest.mark.asyncio
-    async def test_generate_connection_error(self, settings: Settings) -> None:
-        """Should raise AIClientError on connection failure."""
-        from openai import APIConnectionError
-
+    async def test_connection_error(self, settings):
         client = AIClient(settings)
         client._client = AsyncMock()
         client._client.chat.completions.create = AsyncMock(
@@ -85,13 +86,12 @@ class TestAIClient:
         )
 
         with pytest.raises(AIClientError, match="Could not connect"):
-            await client.generate([{"role": "user", "content": "Hi"}])
+            await client.generate(
+                [{"role": "user", "content": "Hi"}]
+            )
 
     @pytest.mark.asyncio
-    async def test_generate_timeout_error(self, settings: Settings) -> None:
-        """Should raise AIClientError on timeout."""
-        from openai import APITimeoutError
-
+    async def test_timeout_error(self, settings):
         client = AIClient(settings)
         client._client = AsyncMock()
         client._client.chat.completions.create = AsyncMock(
@@ -99,13 +99,12 @@ class TestAIClient:
         )
 
         with pytest.raises(AIClientError, match="timed out"):
-            await client.generate([{"role": "user", "content": "Hi"}])
+            await client.generate(
+                [{"role": "user", "content": "Hi"}]
+            )
 
     @pytest.mark.asyncio
-    async def test_generate_rate_limit_error(self, settings: Settings) -> None:
-        """Should raise AIClientError on rate limit."""
-        from openai import RateLimitError
-
+    async def test_rate_limit_error(self, settings):
         client = AIClient(settings)
         client._client = AsyncMock()
         client._client.chat.completions.create = AsyncMock(
@@ -117,11 +116,12 @@ class TestAIClient:
         )
 
         with pytest.raises(AIClientError, match="busy"):
-            await client.generate([{"role": "user", "content": "Hi"}])
+            await client.generate(
+                [{"role": "user", "content": "Hi"}]
+            )
 
     @pytest.mark.asyncio
-    async def test_generate_unexpected_error(self, settings: Settings) -> None:
-        """Should raise AIClientError on unexpected errors."""
+    async def test_unexpected_error(self, settings):
         client = AIClient(settings)
         client._client = AsyncMock()
         client._client.chat.completions.create = AsyncMock(
@@ -129,11 +129,12 @@ class TestAIClient:
         )
 
         with pytest.raises(AIClientError, match="unexpected"):
-            await client.generate([{"role": "user", "content": "Hi"}])
+            await client.generate(
+                [{"role": "user", "content": "Hi"}]
+            )
 
     @pytest.mark.asyncio
-    async def test_close(self, settings: Settings) -> None:
-        """Should close the underlying client."""
+    async def test_close(self, settings):
         client = AIClient(settings)
         client._client = AsyncMock()
 

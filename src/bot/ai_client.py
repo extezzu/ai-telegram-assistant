@@ -12,8 +12,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class AIResponse:
-    """Response from the AI model."""
-
     content: str
     prompt_tokens: int
     completion_tokens: int
@@ -33,17 +31,7 @@ class AIClient:
         self,
         messages: list[dict[str, str]],
     ) -> AIResponse:
-        """Generate a chat completion from the given messages.
-
-        Args:
-            messages: List of message dicts with 'role' and 'content' keys.
-
-        Returns:
-            AIResponse with content and token usage stats.
-
-        Raises:
-            AIClientError: On API errors after logging.
-        """
+        """Send messages to the OpenAI API and return the response."""
         try:
             response = await self._client.chat.completions.create(
                 model=self._model,
@@ -66,7 +54,9 @@ class AIClient:
             )
         except Exception:
             logger.exception("Unexpected OpenAI API error")
-            raise AIClientError("An unexpected error occurred. Please try again later.")
+            raise AIClientError(
+                "An unexpected error occurred. Please try again later."
+            )
 
         choice = response.choices[0]
         usage = response.usage
@@ -86,7 +76,6 @@ class AIClient:
         )
 
     async def close(self) -> None:
-        """Close the underlying HTTP client."""
         await self._client.close()
 
 

@@ -13,12 +13,9 @@ A production-ready Telegram bot template for **AI-powered customer support**. Pr
 
 ## Demo
 
-> _GIF demo coming — bot handles "I forgot my password, my email is alice@example.com" by calling `reset_password_link` tool and replying with the reset URL._
-
-<!--
-TODO replace with actual GIF:
 ![demo](docs/demo.gif)
--->
+
+The bot picks up _"I forgot my password, my email is alice@example.com"_ and invokes the `reset_password_link` tool — the reply embeds the actual reset URL the tool returned. Same flow for order lookups, ticket escalation, or any tool you wire into `src/bot/tools.py`.
 
 ---
 
@@ -174,7 +171,7 @@ See `.env.example` for ready-to-paste configs for each.
 | `OPENAI_MAX_TOKENS`         | `1024`                 | Max tokens in response                           |
 | `OPENAI_TEMPERATURE`        | `0.7`                  | Response temperature (0.0–2.0)                   |
 | `ENABLE_FUNCTION_CALLING`   | `false`                | Enable the demo support tools                    |
-| `REDIS_URL`                 | `redis://localhost:6379/0` | Redis connection URL                         |
+| `REDIS_URL`                 | `redis://localhost:6379/0` | Redis connection URL. Set to `fake` for in-memory storage (no Redis needed — useful for demos and CI). |
 | `MAX_CONVERSATION_LENGTH`   | `20`                   | Messages retained per user                       |
 | `RATE_LIMIT_PER_MINUTE`     | `10`                   | Per-user message cap                             |
 | `DEFAULT_SYSTEM_PROMPT`     | `You are a helpful...` | Default AI behavior                              |

@@ -48,9 +48,14 @@ def main() -> None:
     app = ApplicationBuilder().token(settings.telegram_bot_token).build()
 
     async def post_init(application) -> None:
-        redis = redis_from_url(
-            settings.redis_url, decode_responses=True
-        )
+        if settings.redis_url == "fake":
+            from fakeredis.aioredis import FakeRedis
+            redis = FakeRedis(decode_responses=True)
+            logger.info("Using in-memory fakeredis (no persistence)")
+        else:
+            redis = redis_from_url(
+                settings.redis_url, decode_responses=True
+            )
         application.bot_data["redis"] = redis
 
         ai_client = AIClient(settings)

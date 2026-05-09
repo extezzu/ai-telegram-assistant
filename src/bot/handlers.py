@@ -124,6 +124,13 @@ class Handlers:
         for chunk in split_message(response.content):
             await update.message.reply_text(chunk)
 
+        if response.tool_calls_made:
+            logger.info(
+                "User %d — invoked tools: %s",
+                user_id,
+                ", ".join(response.tool_calls_made),
+            )
+
         logger.info(
             "User %d — tokens: %d (prompt: %d, completion: %d)",
             user_id,
